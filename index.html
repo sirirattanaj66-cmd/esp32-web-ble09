@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>ESP32 Web BLE App</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style>
+body {
+  font-family: Arial, sans-serif;
+  background: #f4f6f8;
+  margin: 0;
+}
+.topnav {
+  background: #1f2937;
+  color: white;
+  padding: 16px;
+  text-align: center;
+}
+.content {
+  padding: 20px;
+}
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.card {
+  background: white;
+  padding: 16px;
+  border-radius: 10px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+button {
+  padding: 10px 16px;
+  margin: 5px 5px 5px 0;
+  font-size: 16px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.connectButton { background: #2563eb; color: white; }
+.disconnectButton { background: #9ca3af; color: white; }
+.onButton { background: #16a34a; color: white; }
+.offButton { background: #dc2626; color: white; }
+.gray-label { color: #555; }
+.reading { font-size: 18px; }
+</style>
+</head>
+
+<body>
+
+<div class="topnav">
+  <h1>ESP32 Web BLE Application</h1>
+</div>
+
+<div class="content">
+  <div class="card-grid">
+    <div class="card">
+      <button id="connectBleButton" class="connectButton">Connect BLE</button>
+      <button id="disconnectBleButton" class="disconnectButton">Disconnect</button>
+      <p class="gray-label">
+        BLE state:
+        <strong><span id="bleState" style="color:#dc2626;">Disconnected</span></strong>
+      </p>
+    </div>
+  </div>
+
+  <div class="card-grid">
+    <div class="card">
+      <h2>Sensor Data</h2>
+      <p class="reading">🌡 Temp: <span id="tempValue">--</span> °C</p>
+      <p class="reading">❤️ HR: <span id="hrValue">--</span> bpm</p>
+      <p class="reading">🩸 SpO₂: <span id="spo2Value">--</span> %</p>
+      <p class="gray-label">Last reading: <span id="timestamp">--</span></p>
+    </div>
+
+    <div class="card">
+      <h2>Control GPIO 2</h2>
+      <button id="onButton" class="onButton">ON</button>
+      <button id="offButton" class="offButton">OFF</button>
+      <p class="gray-label">Last value sent: <span id="valueSent">--</span></p>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ========= DOM ========= */
+const connectButton = document.getElementById('connectBleButton');
+const disconnectButton = document.getElementById('disconnectBleButton');
+const onButton = document.getElementById('onButton');
+const offButton = document.getElementById('offButton');
+const bleState = document.getElementById('bleState');
+const tempValue = document.getElementById('tempValue');
+const hrValue = document.getElementById('hrValue');
+const spo2Value = document.getElementById('spo2Value');
+const timestamp = document.getElementById('timestamp');
+const valueSent = document.getElementById('valueSent');
+
+/* ========= BLE UUID (ต้องตรงกับ ESP32) ========= */
+const SERVICE_UUID  = '19b10000-e8f2-537e-4f6c-d104768a1214';
+const DATA_CHAR_UUID = '19b10001-e8f2-537e-4f6c-d104768a1214';
+const LED_CHAR_UUID  = '19b10002-e8f2-537e-4f6c-d104768a1214';
+
+let bleDevice;
+let bleServer;
+let bleService;
+let dataCharacteristic;
+
+/* ========= CONNECT ========= */
+connectButton.onclick = async () => {
+  if (!navigator.bluetooth) {
+    alert("ใช้ Chrome หรือ Edge บนคอมเท่านั้น");
+    return;
+  }
+
+  try {
+    bleDevice = await navigator.bluetooth.requestDevice({
+      acceptAllDevices: true,
+      optionalServices: [SERVICE_UUID]
+    });
+
+    bleDevice.addEventListener('gattservicedisconnected', onDisconnected);
+
+    bleState.innerText = "Connecting...";
+    bleState.style.color = "orange";
+
+    bleServer = await bleDevice.gatt.connect();
+    bleService = await bleServer.getPrimaryService(SERVICE_UUID);
+    dataCharacteristic = await bleService.getCharacteristic(DATA_CHAR_UUID);
+
+    await dataCharacteristic.startNotifications();
+    dataCharacteristic.addEventListener('characteristicvaluechanged', handleData);
+
+    bleState.innerText = "Connected";
+    bleState.style.color = "#16a34a";
+
+  } catch (err) {
+    console.error(err);
+    alert("เชื่อมต่อ BLE ไม่สำเร็จ");
+  }
+};
+
+/* ========= DISCONNECT ========= */
+disconnectButton.onclick = () => {
+  if (bleDevice && bleDevice.gatt.connected) {
+    bleDevice.gatt.disconnect();
+  }
+};
+
+function onDisconnected() {
+  bleState.innerText = "Disconnected";
+  bleState.style.color = "#dc2626";
+}
+
+/* ========= RECEIVE DATA ========= */
+function handleData(event) {
+  const text = new TextDecoder().decode(event.target.value);
+
+  try {
+    const d = JSON.parse(text);
+    if (d.temp !== undefined) tempValue.innerText = d.temp.toFixed(2);
+    if (d.hr   !== undefined) hrValue.innerText = d.hr.toFixed(1);
+    if (d.spo2 !== undefined) spo2Value.innerText = d.spo2.toFixed(1);
+    timestamp.innerText = new Date().toLocaleString();
+  } catch {
+    console.warn("Invalid data:", text);
+  }
+}
+
+/* ========= LED ========= */
+onButton.onclick = () => writeLED(1);
+offButton.onclick = () => writeLED(0);
+
+function writeLED(val) {
+  if (!bleService) return alert("ยังไม่เชื่อมต่อ BLE");
+
+  bleService.getCharacteristic(LED_CHAR_UUID)
+    .then(c => c.writeValue(new Uint8Array([val])))
+    .then(() => valueSent.innerText = val);
+}
+</script>
+
+</body>
+</html>

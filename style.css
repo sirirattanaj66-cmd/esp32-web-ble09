@@ -1,0 +1,95 @@
+html {
+font-family: Arial, Helvetica, sans-serif;
+display: inline-block;
+text-align: center;
+}
+body {
+margin: 0;
+background-color: #f2f4f8;
+}
+h1 {
+font-size: 1.8rem;
+color: white;
+}
+h2 {
+font-size: 1.4rem;
+margin-bottom: 10px;
+}
+.topnav {
+overflow: hidden;
+background-color: #0A1128;
+padding: 10px;
+}
+.content {
+padding: 40px 20px;
+}
+/* ===== CARD GRID ===== */
+.card-grid {
+max-width: 900px;
+margin: 0 auto 30px;
+display: grid;
+grid-gap: 2rem;
+grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+/* ===== CARD ===== */
+.card {
+background-color: white;
+box-shadow: 2px 2px 12px 1px rgba(140,140,140,.4);
+padding: 20px;
+border-radius: 10px;
+}
+/* ===== BUTTON ===== */
+button {
+color: white;
+padding: 14px 20px;
+margin: 6px;
+border: none;
+cursor: pointer;
+border-radius: 6px;
+font-size: 1rem;
+}
+button:hover {
+opacity: 0.9;
+}
+.onButton {
+background-color: #1b8a94;
+}
+.offButton {
+background-color: #5f6c6d;
+}
+.connectButton {
+background-color: #24af37;
+}
+.disconnectButton {
+background-color: #d13a30;
+}
+/* ===== TEXT ===== */
+.gray-label {
+color: #8e8e8e;
+font-size: 0.95rem;
+margin-top: 10px;
+}
+.reading {
+font-size: 1.7rem;
+margin: 8px 0;
+font-weight: bold;
+}
+/* ===== SENSOR COLORS ===== */
+#tempValue {
+color: #e67e22;
+}
+#hrValue {
+color: #c0392b;
+}
+#spo2Value {
+color: #2980b9;
+}
+/* ===== MOBILE ===== */
+@media (max-width: 600px) {
+h1 {
+font-size: 1.4rem;
+}
+.reading {
+font-size: 1.4rem;
+}
+}
